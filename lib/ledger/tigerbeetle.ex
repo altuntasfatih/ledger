@@ -59,11 +59,13 @@ defmodule Ledger.Tigerbeetle do
     - `{:ok, account}` if found
     - `{:error, :account_not_found}` if not found
   """
-  @spec lookup_account(account_id()) :: {:ok, TigerBeetlex.Account.t()} | {:error, :account_not_found}
+  @spec lookup_account(account_id()) ::
+          {:ok, TigerBeetlex.Account.t()} | {:error, :account_not_found}
   def lookup_account(id) when is_integer(id), do: do_lookup_account(ID.from_int(id))
   def lookup_account(id) when is_binary(id), do: do_lookup_account(id)
 
-  @spec do_lookup_account(binary()) :: {:ok, TigerBeetlex.Account.t()} | {:error, :account_not_found}
+  @spec do_lookup_account(binary()) ::
+          {:ok, TigerBeetlex.Account.t()} | {:error, :account_not_found}
   defp do_lookup_account(id) do
     case TigerBeetlex.Connection.lookup_accounts(connection_name!(), [id]) do
       {:ok, stream} ->

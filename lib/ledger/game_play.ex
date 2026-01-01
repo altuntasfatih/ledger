@@ -187,7 +187,8 @@ defmodule Ledger.GamePlay do
     end
   end
 
-  @spec ensure_game_pool_account(integer(), integer()) :: {:ok, %{id: binary()}} | {:error, term()}
+  @spec ensure_game_pool_account(integer(), integer()) ::
+          {:ok, %{id: binary()}} | {:error, term()}
   defp ensure_game_pool_account(game_id, ledger) do
     code = AccountCode.game_bet_pool()
 

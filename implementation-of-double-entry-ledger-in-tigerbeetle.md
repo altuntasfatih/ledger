@@ -128,7 +128,7 @@ These codes aren't just for display — they're essential for:
 
 ## The Money Flows
 
-Let's trace how money moves through our system for each operation. Understanding these flows is more important than the code itself.
+Let's trace how money moves through our system for each operation. Understanding these flows is more important than memorizing code.
 
 ### Deposit: User Adds $100
 
@@ -141,6 +141,24 @@ When a user deposits money, two things happen simultaneously:
 Cash Asset          User Liability
 ─────────────       ─────────────
 Debit: +$100   →    Credit: +$100
+```
+
+In code, we build a transfer where `cash_asset_id` is the debit side and `user_liability_id` is the credit side:
+
+```elixir
+def deposit(transaction_id, wallet_id, amount) do
+  with {:ok, %{id: user_liability_id, ledger: ledger}} <- fetch_user_account(wallet_id),
+       {:ok, %{id: cash_asset_id}} <- ensure_cash_asset_account(ledger) do
+    
+    build_transfer(
+      debit_account_id: cash_asset_id,      # Money comes FROM cash
+      credit_account_id: user_liability_id,  # Money goes TO user's balance
+      code: TransferCode.deposit(),
+      amount: amount
+    )
+    |> execute_transfer()
+  end
+end
 ```
 
 The user's "balance" is their liability account's credits minus debits. After this deposit, that's $100 - $0 = $100.
@@ -158,11 +176,29 @@ User Liability      Game Pool
 Debit: +$20    →    Credit: +$20
 ```
 
+Notice how the debit/credit sides flip compared to deposit — now we're *reducing* the user's balance:
+
+```elixir
+def bet(user_account_id, game_id, amount) do
+  with {:ok, %{id: user_liability_id, ledger: ledger}} <- fetch_user_account(user_account_id),
+       {:ok, %{id: game_pool_id}} <- ensure_game_pool_account(game_id, ledger) do
+    
+    build_transfer(
+      debit_account_id: user_liability_id,  # Reduce user balance
+      credit_account_id: game_pool_id,       # Hold in game escrow
+      code: TransferCode.bet(),
+      amount: amount
+    )
+    |> execute_transfer()
+  end
+end
+```
+
 The user's balance is now $100 - $20 = $80. The $20 sits in the game pool until the outcome is determined.
 
 ### Win: User Wins $50 (on a $20 bet)
 
-Winning requires *two* transfers:
+Winning requires *two* transfers that must execute atomically:
 
 **Transfer 1: Return the original bet**
 ```
@@ -178,6 +214,28 @@ Cash Asset          User Liability
 Debit: +$30    →    Credit: +$30
 ```
 
+The key insight is that we look up the *original bet transfer* to find the accounts and amounts:
+
+```elixir
+def win(bet_id, win_amount) do
+  with {:ok, bet_transfer} <- fetch_bet_transfer(bet_id),
+       {:ok, %{id: cash_asset_id}} <- fetch_cash_asset_account() do
+    
+    %{credit_account_id: game_pool_id, 
+      debit_account_id: user_liability_id,
+      amount: bet_amount} = bet_transfer
+    
+    payout_amount = win_amount - bet_amount
+    
+    # Both transfers execute atomically
+    Tigerbeetle.create_transfers([
+      build_transfer(game_pool_id, user_liability_id, bet_amount),   # Return bet
+      build_transfer(cash_asset_id, user_liability_id, payout_amount) # Pay winnings
+    ])
+  end
+end
+```
+
 The game pool returns to zero (the bet is settled), and the user receives their original $20 plus $30 in profit. Their balance is now $80 + $50 = $130.
 
 ### Loss: User Loses the $20 Bet
@@ -188,6 +246,26 @@ When a user loses, the bet moves from the game pool to the platform's cash:
 Game Pool           Cash Asset
 ─────────────       ─────────────
 Debit: +$20    →    Credit: +$20
+```
+
+Again, we reference the original bet to know the amount:
+
+```elixir
+def loss(bet_id) do
+  with {:ok, bet_transfer} <- fetch_bet_transfer(bet_id),
+       {:ok, %{id: cash_asset_id}} <- fetch_cash_asset_account() do
+    
+    %{credit_account_id: game_pool_id, amount: bet_amount} = bet_transfer
+    
+    build_transfer(
+      debit_account_id: game_pool_id,   # Empty the escrow
+      credit_account_id: cash_asset_id,  # Platform takes the money
+      code: TransferCode.loss(),
+      amount: bet_amount
+    )
+    |> execute_transfer()
+  end
+end
 ```
 
 The user's balance stays at $80 (they already "spent" the $20 when betting). The platform keeps the money.
@@ -285,6 +363,28 @@ Our tests follow the pattern:
 3. Query accounts and verify balances match expectations
 
 The key insight is that **TigerBeetle doesn't have transactions to roll back** — each test run needs a fresh database. For testing, we recreate the data file before each test suite.
+
+### Integration Tests
+
+Beyond unit tests, we have integration tests that simulate complete user journeys. These are the best way to understand how the system works in practice:
+
+```elixir
+test "winning session: deposit → bet → win → withdraw profits" do
+  deposit_to_wallet(wallet_id, 1000)
+  assert {:ok, 1000} = Wallet.get_balance(wallet_id)
+
+  {:ok, bet_id} = GamePlay.bet(wallet_id, game_id, 200)
+  assert {:ok, 800} = Wallet.get_balance(wallet_id)
+
+  {:ok, _} = GamePlay.win(bet_id, 500)
+  assert {:ok, 1300} = Wallet.get_balance(wallet_id)
+
+  {:ok, _} = Wallet.withdraw(tx_id, wallet_id, 300)
+  assert {:ok, 1000} = Wallet.get_balance(wallet_id)
+end
+```
+
+Check out the `test/ledger/integration_test.exs` file in the repository for complete scenarios including multi-game sessions, losing streaks, and edge cases like betting your entire balance.
 
 ---
 

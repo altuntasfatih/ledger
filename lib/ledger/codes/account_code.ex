@@ -41,5 +41,12 @@ defmodule Ledger.Codes.AccountCode do
 
   @doc "Returns all valid account codes"
   @spec all() :: [10 | 20 | 30 | 40 | 50]
-  def all, do: [@cash_asset, @game_bet_pool, @user_liability, @system_revenue_equity, @system_capital_equity]
+  def all,
+    do: [
+      @cash_asset,
+      @game_bet_pool,
+      @user_liability,
+      @system_revenue_equity,
+      @system_capital_equity
+    ]
 end
