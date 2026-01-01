@@ -5,7 +5,7 @@ defmodule Ledger.MixProject do
     [
       app: :ledger,
       version: "0.1.0",
-      elixir: "~> 1.18",
+      elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       dialyzer: dialyzer(),
@@ -34,7 +34,7 @@ defmodule Ledger.MixProject do
 
   def deps do
     [
-      {:tigerbeetlex, "~> 0.16.60"},
+      {:tigerbeetlex, "~> 0.16.66"},
       # Development/test only
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},

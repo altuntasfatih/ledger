@@ -27,3 +27,6 @@ ledger-*.tar
 
 0_0.tigerbeetle
 0_0.tigerbeetle_test
+
+# TigerBeetle binary
+tigerbeetle

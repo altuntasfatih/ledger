@@ -7,11 +7,7 @@ defmodule GamePlay do
     Ledger.win_on_game(bet_id, win_amount)
   end
 
-  def loss(_bet_id) do
-    # Ledger.win_on_game(bet_id, amount)
+  def loss(bet_id) do
+    Ledger.loss_on_game(bet_id)
   end
-
-  # def loss_by_bet(loss_id, wallet_id, game_id, bet_id) do
-  #   Ledger.loss_by_bet(loss_id, wallet_id, game_id, bet_id)
-  # end
 end

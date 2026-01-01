@@ -8,9 +8,9 @@ on:
 
 env:
   MIX_ENV: test
-  ELIXIR_VERSION: "1.18.3"
-  OTP_VERSION: "27.2.4"
-  TIGERBEETLE_VERSION: "0.16.60"
+  ELIXIR_VERSION: "1.19.4"
+  OTP_VERSION: "28.1"
+  TIGERBEETLE_VERSION: "0.16.66"
 
 jobs:
   test:

@@ -166,6 +166,26 @@ defmodule Ledger do
     end
   end
 
+  def loss_on_game(bet_id) do
+    with {:ok,
+          %{credit_account_id: game_bet_pool_liability_id, amount: bet_amount} = bet_transfer} <-
+           fetch_transfer(bet_id, TransferType.bet()),
+         {:ok, %{id: cash_asset_id}} <-
+           fetch_account(cash_asset_account_id(), Account.cash_asset_code()) do
+      # Transfer the bet amount from game pool to cash asset (platform keeps the money)
+      %TigerBeetlex.Transfer{
+        id: ID.generate(),
+        debit_account_id: game_bet_pool_liability_id,
+        credit_account_id: cash_asset_id,
+        ledger: bet_transfer.ledger,
+        code: TransferType.loss(),
+        amount: bet_amount,
+        flags: struct(TigerBeetlex.TransferFlags, %{})
+      }
+      |> Tigerbeetle.create_transfer()
+    end
+  end
+
   defp ensure_game_bet_pool_liability_account(game_id, ledger) do
     code = Account.game_bet_pool_liability_code()
 
